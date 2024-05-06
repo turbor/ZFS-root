@@ -467,7 +467,8 @@ SCRIPT_SUITE=$(lsb_release -cs)
 # Suite to install - bionic focal jammy
 if [[ ! -v SUITE ]] ; then
     SUITE=$(whiptail --title "Select Ubuntu distribtion" --radiolist "Choose distro" 11 50 5 \
-        jammy "22.04 jammy" ON \
+        noble "24.04 noble" ON \
+        jammy "22.04 jammy" OFF \
         focal "20.04 focal" OFF \
         bionic "18.04 Bionic" OFF \
         3>&1 1>&2 2>&3)
@@ -479,6 +480,30 @@ fi # Check for Ubuntu suite to install
 # TODO: Make use of SUITE_EXTRAS maybe
 #
 case ${SUITE} in
+    noble)
+        SUITE_NUM="24.04"
+        SUITE_EXTRAS="netplan.io expect"
+        SUITE_BOOTSTRAP="wget,whois,rsync,gdisk,netplan.io,gpg-agent"
+        # Install HWE packages - set to blank or to "-hwe-24.04"
+        # Gets tacked on to various packages below
+        [ "${HWE}" = "y" ] && HWE="-hwe-${SUITE_NUM}" || HWE=
+        # Specific zpool features available in noble, 
+        # Depends on what suite this script is running under
+        case ${SCRIPT_SUITE} in
+            bionic | focal | jammy)
+                # Currently (06/05/2024) set the compatibility since zfsboot menu had troubles with importing due to new feature com.klarasystems:vdev_zaps_v2
+                SUITE_ROOT_POOL="-O dnodesize=auto -o compatibility=openzfs-2.1-linux"
+                ;;
+            xenial)
+                SUITE_ROOT_POOL=""
+                ;;
+        esac
+        # If ZFSPPA is off (not using latest zfs) must set dnodesize=legacy
+        # otherwise cannot set bootfs property on pool
+        if [ "${ZFSPPA}" = "n" ] ; then
+            SUITE_ROOT_POOL="-O dnodesize=legacy"
+        fi
+        ;;
     jammy)
         SUITE_NUM="22.04"
         SUITE_EXTRAS="netplan.io expect"
